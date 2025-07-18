@@ -1,6 +1,6 @@
 // ¡PEGA AQUÍ EL CLIENT_ID OBTENIDO DEL NUEVO PROYECTO DE GOOGLE CLOUD!
 // Debe ser exactamente el ID de cliente para "ClienteWebPrueba" de image_a0e49c.png
-const CLIENT_ID = '683592283913-l722ocdd370okpjh8ta39qeq7lc61bmk.apps.googleusercontent.com';
+const CLIENT_ID = '796743494350-3urvqs06te5v0438js1c10d0eiukvp85.apps.googleusercontent.com';
 
 // Scopes de autorización para Google Calendar.
 // Necesitamos permiso para MANIPULAR (insertar y actualizar) eventos.
@@ -189,7 +189,6 @@ function handleSignoutClick() {
 
 /**
  * Resetea el formulario y los botones de acción (Crear/Actualizar).
- * También refresca la lista de eventos.
  */
 function resetFormAndButtons() {
     if (eventForm) eventForm.reset();
@@ -200,7 +199,6 @@ function resetFormAndButtons() {
 
     // Asegurarse de que la lista de eventos esté oculta después de un reset
     if (eventListSection) eventListSection.style.display = 'none';
-    // listUpcomingEvents(); // Ya no se llama automáticamente aquí, se activa con el botón
 }
 
 /**
@@ -465,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (signoutButton) signoutButton.addEventListener('click', handleSignoutClick);
 
     // Listener para el botón de cargar evento (entrada manual de ID)
-    if (loadEventButton) loadEventButton.addEventListener('click', populateFormWithEvent);
+    if (loadEventButton) loadEventButton.addEventListener('click', loadEventForModification);
 
     // Listener para el envío del formulario de eventos
     if (eventForm) {
