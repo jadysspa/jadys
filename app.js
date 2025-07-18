@@ -59,7 +59,7 @@ async function initializeGapiClient() {
         });
         gapiInited = true;
         console.log('initializeGapiClient: gapi.client initialized successfully.');
-        checkAuthStatus(); // Verificar estado de autenticación al cargar
+        handleLibrariesLoaded(); // Llama a la función unificada de carga
     } catch (error) {
         console.error('initializeGapiClient: Error al inicializar gapi.client:', error);
         showMessage('Error al cargar la API de Google. Revisa la consola.', 'error');
@@ -79,7 +79,12 @@ function gisLoaded() {
             console.log('GIS Callback received:', resp);
             if (resp.error) {
                 console.error('Error de autenticación GIS:', resp);
-                showMessage(`Error de autenticación: ${resp.error_description || resp.error}. Revisa la configuración de tu CLIENT_ID y Orígenes.`, 'error');
+                // Si el error es 'popup_closed_by_user' o similar, no mostrar un mensaje de error agresivo
+                if (resp.error === 'popup_closed_by_user' || resp.error === 'access_denied') {
+                    showMessage('Autenticación cancelada. Puedes intentarlo de nuevo.', 'info');
+                } else {
+                    showMessage(`Error de autenticación: ${resp.error_description || resp.error}. Revisa la configuración de tu CLIENT_ID y Orígenes.`, 'error');
+                }
                 showAuthStatus('No autenticado');
             } else {
                 showAuthStatus('Autenticado', true);
@@ -93,31 +98,58 @@ function gisLoaded() {
     });
     gisInited = true;
     console.log('gisLoaded: tokenClient initialized.');
-    checkAuthStatus(); // Verificar estado de autenticación al cargar
+    handleLibrariesLoaded(); // Llama a la función unificada de carga
 }
 
 /**
- * Verifica el estado de autenticación inicial y habilita/deshabilita los botones.
+ * Función unificada para manejar la carga de ambas librerías.
+ * Solo procede con la verificación de autenticación si ambas están listas.
  */
-function checkAuthStatus() {
-    console.log('checkAuthStatus: gapiInited:', gapiInited, 'gisInited:', gisInited);
+async function handleLibrariesLoaded() {
+    console.log('handleLibrariesLoaded: gapiInited:', gapiInited, 'gisInited:', gisInited);
     if (gapiInited && gisInited) {
-        if (gapi.client.getToken()) {
-            console.log('checkAuthStatus: User is authenticated.');
+        console.log('handleLibrariesLoaded: Both GAPI and GIS are initialized. Performing initial auth check.');
+        await performInitialAuthCheck();
+    } else {
+        console.log('handleLibrariesLoaded: Waiting for both GAPI and GIS to be initialized...');
+    }
+}
+
+/**
+ * Realiza la verificación de autenticación inicial, intentando la autenticación silenciosa.
+ */
+async function performInitialAuthCheck() {
+    if (gapi.client.getToken()) {
+        console.log('performInitialAuthCheck: User is already authenticated (token exists).');
+        showAuthStatus('Autenticado', true);
+        if (eventFormSection) {
+            eventFormSection.style.display = 'block';
+        }
+        showMessage('Ya autenticado. Puedes crear o modificar eventos.', 'success');
+    } else {
+        console.log('performInitialAuthCheck: No token found, attempting silent authentication...');
+        try {
+            // Intenta obtener un token sin mostrar la ventana de consentimiento
+            await tokenClient.requestAccessToken({ prompt: 'none' });
+            // Si llega aquí, la autenticación silenciosa fue exitosa
+            console.log('performInitialAuthCheck: Silent authentication successful.');
             showAuthStatus('Autenticado', true);
+            showMessage('¡Conexión exitosa con Google Calendar API!', 'success');
             if (eventFormSection) {
                 eventFormSection.style.display = 'block';
             }
-            showMessage('Ya autenticado. Puedes crear o modificar eventos.', 'success');
-        } else {
-            console.log('checkAuthStatus: User is not authenticated.');
+        } catch (error) {
+            // Falló la autenticación silenciosa, el usuario necesita interactuar
+            console.warn('performInitialAuthCheck: Silent authentication failed, user interaction required:', error);
             showAuthStatus('Listo para autenticar');
+            showMessage('Necesitas autorizar con Google para usar la aplicación.', 'info');
             if (eventFormSection) {
                 eventFormSection.style.display = 'none';
             }
         }
     }
 }
+
 
 /**
  * Actualiza el mensaje de estado de autenticación en la interfaz.
@@ -173,8 +205,8 @@ function showResponse(msg, type) {
  * Inicia el flujo de autenticación cuando se hace clic en el botón Autorizar.
  */
 function handleAuthClick() {
-    console.log('handleAuthClick: Requesting access token...');
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    console.log('handleAuthClick: Requesting access token explicitly (prompt: consent)...');
+    tokenClient.requestAccessToken({ prompt: 'consent' }); // Esto siempre mostrará la ventana de consentimiento
 }
 
 /**
