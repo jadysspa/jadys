@@ -23,11 +23,9 @@ let eventForm;
 let authSection; // Referencia al contenedor de estado y botones
 let headerAuthContainer; // Referencia al contenedor principal de header y autenticación
 
-let eventIdToModifyInput; // Campo para el ID del evento a modificar (para entrada manual)
-let loadEventButton;      // Botón para cargar el evento (para entrada manual)
 let createEventButton;    // Botón para crear evento
 let updateEventButton;    // Botón para actualizar evento
-let toggleEventListButton; // NUEVO: Botón para mostrar/ocultar la lista de eventos
+let toggleEventListButton; // Botón para mostrar/ocultar la lista de eventos
 
 // Nuevos elementos para la lista de eventos
 let eventListSection;    // Sección que contiene la lista de eventos
@@ -36,7 +34,6 @@ let eventListLoading;    // Indicador de carga para la lista de eventos
 
 // Campos del formulario
 let eventSummary;
-// let eventLocation; // Eliminado: Ya no se usa
 let serviceType; // Campo para el tipo de servicio
 let eventStartDate;
 let eventStartTime;
@@ -46,6 +43,7 @@ let eventStartTime;
  * Carga el módulo 'client' y luego inicializa el cliente de la API.
  */
 function gapiLoaded() {
+    console.log('gapiLoaded: gapi client library loaded.');
     gapi.load('client', initializeGapiClient);
 }
 
@@ -55,13 +53,15 @@ function gapiLoaded() {
  */
 async function initializeGapiClient() {
     try {
+        console.log('initializeGapiClient: Initializing gapi.client...');
         await gapi.client.init({
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         });
         gapiInited = true;
+        console.log('initializeGapiClient: gapi.client initialized successfully.');
         checkAuthStatus(); // Verificar estado de autenticación al cargar
     } catch (error) {
-        console.error('Error al inicializar gapi.client:', error);
+        console.error('initializeGapiClient: Error al inicializar gapi.client:', error);
         showMessage('Error al cargar la API de Google. Revisa la consola.', 'error');
     }
 }
@@ -71,10 +71,12 @@ async function initializeGapiClient() {
  * Inicializa el cliente de token OAuth 2.0.
  */
 function gisLoaded() {
+    console.log('gisLoaded: Google Identity Services library loaded.');
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES.join(' '),
         callback: async (resp) => {
+            console.log('GIS Callback received:', resp);
             if (resp.error) {
                 console.error('Error de autenticación GIS:', resp);
                 showMessage(`Error de autenticación: ${resp.error_description || resp.error}. Revisa la configuración de tu CLIENT_ID y Orígenes.`, 'error');
@@ -83,14 +85,14 @@ function gisLoaded() {
                 showAuthStatus('Autenticado', true);
                 showMessage('¡Conexión exitosa con Google Calendar API!', 'success');
                 console.log('Token de acceso:', gapi.client.getToken().access_token);
-                // Asegúrate de que el formulario se muestre después de una nueva autenticación
-                if (eventFormSection) { // Comprueba si el elemento ya fue inicializado por DOMContentLoaded
+                if (eventFormSection) {
                     eventFormSection.style.display = 'block';
                 }
             }
         },
     });
     gisInited = true;
+    console.log('gisLoaded: tokenClient initialized.');
     checkAuthStatus(); // Verificar estado de autenticación al cargar
 }
 
@@ -98,16 +100,19 @@ function gisLoaded() {
  * Verifica el estado de autenticación inicial y habilita/deshabilita los botones.
  */
 function checkAuthStatus() {
+    console.log('checkAuthStatus: gapiInited:', gapiInited, 'gisInited:', gisInited);
     if (gapiInited && gisInited) {
         if (gapi.client.getToken()) {
+            console.log('checkAuthStatus: User is authenticated.');
             showAuthStatus('Autenticado', true);
-            if (eventFormSection) { // Comprueba si el elemento ya fue inicializado
+            if (eventFormSection) {
                 eventFormSection.style.display = 'block';
             }
             showMessage('Ya autenticado. Puedes crear o modificar eventos.', 'success');
         } else {
+            console.log('checkAuthStatus: User is not authenticated.');
             showAuthStatus('Listo para autenticar');
-            if (eventFormSection) { // Comprueba si el elemento ya fue inicializado
+            if (eventFormSection) {
                 eventFormSection.style.display = 'none';
             }
         }
@@ -118,23 +123,21 @@ function checkAuthStatus() {
  * Actualiza el mensaje de estado de autenticación en la interfaz.
  */
 function showAuthStatus(message, isAuthenticated = false) {
+    console.log('showAuthStatus:', message, 'isAuthenticated:', isAuthenticated);
     if (statusMessage) statusMessage.textContent = message;
     if (authorizeButton) authorizeButton.style.display = isAuthenticated ? 'none' : 'inline-block';
     if (signoutButton) signoutButton.style.display = isAuthenticated ? 'inline-block' : 'none';
     if (eventFormSection) eventFormSection.style.display = isAuthenticated ? 'block' : 'none';
 
-    // Controla la visibilidad de TODO el header y la sección de autenticación
     if (headerAuthContainer) {
         headerAuthContainer.style.display = isAuthenticated ? 'none' : 'block';
     }
 
-    // Controla la visibilidad del botón para la lista de eventos
     if (toggleEventListButton) {
         toggleEventListButton.style.display = isAuthenticated ? 'inline-block' : 'none';
     }
-    // Asegura que la lista de eventos esté oculta por defecto al autenticar
     if (eventListSection) {
-        eventListSection.style.display = 'none';
+        eventListSection.style.display = 'none'; // Siempre oculta la lista al cambiar estado de auth
     }
 }
 
@@ -170,6 +173,7 @@ function showResponse(msg, type) {
  * Inicia el flujo de autenticación cuando se hace clic en el botón Autorizar.
  */
 function handleAuthClick() {
+    console.log('handleAuthClick: Requesting access token...');
     tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
@@ -177,6 +181,7 @@ function handleAuthClick() {
  * Cierra la sesión del usuario.
  */
 function handleSignoutClick() {
+    console.log('handleSignoutClick: Signing out...');
     const token = gapi.client.getToken();
     if (token !== null) {
         google.accounts.oauth2.revoke(token.access_token);
@@ -184,6 +189,7 @@ function handleSignoutClick() {
         showAuthStatus('No autenticado');
         showMessage('Sesión cerrada.', 'success');
         showResponse(''); // Limpiar mensajes de respuesta
+        console.log('handleSignoutClick: User signed out.');
     }
 }
 
@@ -191,14 +197,13 @@ function handleSignoutClick() {
  * Resetea el formulario y los botones de acción (Crear/Actualizar).
  */
 function resetFormAndButtons() {
+    console.log('resetFormAndButtons: Resetting form and buttons.');
     if (eventForm) eventForm.reset();
     currentEventId = null; // Limpiar el ID del evento actual
     if (createEventButton) createEventButton.style.display = 'inline-block';
     if (updateEventButton) updateEventButton.style.display = 'none';
-    if (eventIdToModifyInput) eventIdToModifyInput.value = ''; // Limpiar el campo de ID
 
-    // Asegurarse de que la lista de eventos esté oculta después de un reset
-    if (eventListSection) eventListSection.style.display = 'none';
+    if (eventListSection) eventListSection.style.display = 'none'; // Asegurarse de que la lista esté oculta
 }
 
 /**
@@ -206,62 +211,69 @@ function resetFormAndButtons() {
  * Esta función es llamada por los botones de la lista.
  */
 async function populateFormWithEvent(eventId) {
+    console.log('populateFormWithEvent: Attempting to load event with ID:', eventId);
     if (!gapi.client.getToken()) {
         showMessage('No autenticado. Por favor, autoriza con Google.', 'error');
+        console.error('populateFormWithEvent: Not authenticated.');
+        return;
+    }
+
+    if (!eventId) {
+        showMessage('Error: ID de evento no proporcionado.', 'error');
+        console.error('populateFormWithEvent: Event ID is null or empty.');
         return;
     }
 
     try {
-        console.log(`Cargando evento con ID: ${eventId}`);
+        console.log(`populateFormWithEvent: Calling gapi.client.calendar.events.get for eventId: ${eventId}`);
         const response = await gapi.client.calendar.events.get({
             'calendarId': 'primary',
             'eventId': eventId
         });
 
         const event = response.result;
-        console.log('Evento cargado:', event);
+        console.log('populateFormWithEvent: Event loaded successfully:', event);
 
         // Rellenar el formulario con los datos del evento
-        eventSummary.value = event.summary || '';
-        // Intentar rellenar el serviceType si la descripción lo contiene
-        if (event.description && event.description.startsWith('Servicio: ')) {
-            const service = event.description.replace('Servicio: ', '');
-            if (serviceType.querySelector(`option[value="${service}"]`)) {
-                serviceType.value = service;
+        if (eventSummary) eventSummary.value = event.summary || '';
+        if (serviceType) {
+            if (event.description && event.description.startsWith('Servicio: ')) {
+                const service = event.description.replace('Servicio: ', '');
+                if (serviceType.querySelector(`option[value="${service}"]`)) {
+                    serviceType.value = service;
+                } else {
+                    serviceType.value = '';
+                }
             } else {
-                serviceType.value = ''; // Si no coincide, dejar en blanco
+                serviceType.value = '';
             }
-        } else {
-            serviceType.value = ''; // Si no hay descripción o no tiene el formato, dejar en blanco
         }
 
-
-        // Formatear fechas y horas para los campos input
-        if (event.start && event.start.dateTime) {
-            const startDateTime = new Date(event.start.dateTime);
-            eventStartDate.value = startDateTime.toISOString().split('T')[0];
-            eventStartTime.value = startDateTime.toTimeString().substring(0, 5);
-        } else if (event.start && event.start.date) { // Eventos de día completo
-            eventStartDate.value = event.start.date;
-            eventStartTime.value = '00:00'; // Establecer hora por defecto
+        if (event.start && (event.start.dateTime || event.start.date)) {
+            const startDateTime = new Date(event.start.dateTime || event.start.date);
+            if (eventStartDate) eventStartDate.value = startDateTime.toISOString().split('T')[0];
+            if (eventStartTime) eventStartTime.value = startDateTime.toTimeString().substring(0, 5);
+        } else {
+            console.warn('populateFormWithEvent: Event start date/time not found or invalid for event:', event);
+            if (eventStartDate) eventStartDate.value = '';
+            if (eventStartTime) eventStartTime.value = '';
         }
 
         currentEventId = event.id; // Almacenar el ID del evento que se está modificando
-        createEventButton.style.display = 'none'; // Ocultar botón de Crear
-        updateEventButton.style.display = 'inline-block'; // Mostrar botón de Actualizar
-        eventIdToModifyInput.value = event.id; // También setear el campo de entrada manual
+        if (createEventButton) createEventButton.style.display = 'none';
+        if (updateEventButton) updateEventButton.style.display = 'inline-block';
 
         showMessage(`Evento "${event.summary}" cargado para modificación.`, 'success');
 
-        // Ocultar la lista de eventos después de seleccionar uno
-        if (eventListSection) eventListSection.style.display = 'none';
+        if (eventListSection) eventListSection.style.display = 'none'; // Ocultar la lista después de seleccionar uno
 
     } catch (error) {
-        console.error('Error al cargar el evento:', error);
+        console.error('populateFormWithEvent: Error al cargar el evento:', error);
         if (error.result && error.result.error && error.result.error.message) {
             showResponse(`Error al cargar el evento: ${error.result.error.message}`, 'error');
+            console.error('populateFormWithEvent: API Error details:', error.result.error);
         } else {
-            showResponse('Error desconocido al cargar el evento. Revisa la consola.', 'error');
+            showResponse('Error desconocido al cargar el evento. Revisa la consola para más detalles.', 'error');
         }
         resetFormAndButtons(); // Resetear el formulario si hay error al cargar
     }
@@ -271,8 +283,10 @@ async function populateFormWithEvent(eventId) {
  * Lista los próximos eventos del calendario principal del usuario.
  */
 async function listUpcomingEvents() {
+    console.log('listUpcomingEvents: Attempting to list upcoming events.');
     if (!gapi.client.getToken()) {
         if (eventListContainer) eventListContainer.innerHTML = '<p>Por favor, autentícate para ver tus eventos.</p>';
+        console.warn('listUpcomingEvents: Not authenticated, cannot list events.');
         return;
     }
 
@@ -280,6 +294,7 @@ async function listUpcomingEvents() {
     if (eventListContainer) eventListContainer.innerHTML = ''; // Limpiar lista anterior
 
     try {
+        console.log('listUpcomingEvents: Calling gapi.client.calendar.events.list...');
         const response = await gapi.client.calendar.events.list({
             'calendarId': 'primary',
             'timeMin': (new Date()).toISOString(), // Eventos desde ahora en adelante
@@ -290,14 +305,16 @@ async function listUpcomingEvents() {
         });
 
         const events = response.result.items;
+        console.log('listUpcomingEvents: Events received:', events);
+
         if (events.length > 0) {
             events.forEach(event => {
                 const when = event.start.dateTime || event.start.date;
                 const eventItem = document.createElement('div');
                 eventItem.className = 'event-item';
                 eventItem.innerHTML = `
-                    <p><strong>${event.summary}</strong></p>
-                    <p>${new Date(when).toLocaleString()}</p>
+                    <p><strong>${event.summary || 'Sin título'}</strong></p>
+                    <p>${when ? new Date(when).toLocaleString() : 'Fecha/Hora no disponible'}</p>
                     <button class="load-event-button" data-event-id="${event.id}">Cargar para Modificar</button>
                 `;
                 if (eventListContainer) eventListContainer.appendChild(eventItem);
@@ -307,96 +324,96 @@ async function listUpcomingEvents() {
                 eventListContainer.querySelectorAll('.load-event-button').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const eventId = e.target.dataset.eventId;
+                        console.log('listUpcomingEvents: Load button clicked for event ID:', eventId);
                         populateFormWithEvent(eventId);
                     });
                 });
             }
         } else {
             if (eventListContainer) eventListContainer.innerHTML = '<p>No hay eventos próximos.</p>';
+            console.log('listUpcomingEvents: No upcoming events found.');
         }
     } catch (error) {
-        console.error('Error al listar eventos:', error);
+        console.error('listUpcomingEvents: Error al listar eventos:', error);
         if (eventListContainer) eventListContainer.innerHTML = '<p>Error al cargar eventos. Revisa la consola.</p>';
+        if (error.result && error.result.error) {
+            console.error('listUpcomingEvents: API Error details:', error.result.error);
+        }
     } finally {
         if (eventListLoading) eventListLoading.style.display = 'none';
+        console.log('listUpcomingEvents: Event listing finished.');
     }
 }
-
 
 /**
  * Crea o Actualiza un evento en Google Calendar.
  * El comportamiento depende de si currentEventId tiene un valor.
  */
 async function submitEvent(isUpdate = false) {
+    console.log('submitEvent: Attempting to submit event. Is update:', isUpdate, 'currentEventId:', currentEventId);
     try {
         if (!gapi.client.getToken()) {
             showMessage('No autenticado. Por favor, autoriza con Google para crear/modificar eventos.', 'error');
+            console.error('submitEvent: Not authenticated.');
             return;
         }
 
         const summary = eventSummary.value;
-        // const location = eventLocation.value; // Eliminado: Ya no se usa
-        const selectedServiceType = serviceType.value; // Obtener el valor del tipo de servicio
+        const selectedServiceType = serviceType.value;
         const startDate = eventStartDate.value;
         const startTime = eventStartTime.value;
 
-        // Validación básica de campos requeridos
         if (!summary || !startDate || !startTime || !selectedServiceType) {
             showMessage('Por favor, completa todos los campos requeridos (Título, Fecha de Inicio, Hora de Inicio, Tipo de Servicio).', 'error');
+            console.warn('submitEvent: Missing required fields.');
             return;
         }
 
-        // Calcular la fecha y hora de fin automáticamente
-        const startDateTimeStr = `${startDate}T${startTime}`; // Formato "YYYY-MM-DDTHH:mm"
-        const startMoment = new Date(startDateTimeStr); // Crear un objeto Date para manipular la hora
+        const startDateTimeStr = `${startDate}T${startTime}`;
+        const startMoment = new Date(startDateTimeStr);
 
-        // Aumentar 5 minutos para la hora de fin
         startMoment.setMinutes(startMoment.getMinutes() + 5);
 
-        // Formatear la fecha y hora de fin
         const endDate = startMoment.getFullYear() + '-' +
                         String(startMoment.getMonth() + 1).padStart(2, '0') + '-' +
                         String(startMoment.getDate()).padStart(2, '0');
         const endTime = String(startMoment.getHours()).padStart(2, '0') + ':' +
                         String(startMoment.getMinutes()).padStart(2, '0');
 
-        // Construir los objetos de fecha y hora ISO 8601
         const finalStartDateTime = `${startDate}T${startTime}:00`;
-        const finalEndDateTime = `${endDate}T${endTime}:00`; // Usar la hora y fecha calculadas
+        const finalEndDateTime = `${endDate}T${endTime}:00`;
         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-        // Determinar el color del evento según el tipo de servicio
-        let eventColorId = undefined; // Por defecto, sin color específico (color predeterminado de Google Calendar)
+        let eventColorId = undefined;
         if (selectedServiceType === 'FACIAL') {
-            eventColorId = '3'; // ID para el color "Grape" (Uva) en Google Calendar
+            eventColorId = '3'; // Grape color ID
         }
-        // Si es 'PESTAÑAS', eventColorId se mantiene como undefined, usando el color predeterminado.
 
         const event = {
             'summary': summary,
-            'location': '', // Se deja vacío ya que el campo fue eliminado
-            'description': `Servicio: ${selectedServiceType}`, // Puedes personalizar la descripción
+            'location': '',
+            'description': `Servicio: ${selectedServiceType}`,
             'start': {
                 'dateTime': finalStartDateTime,
                 'timeZone': userTimeZone,
             },
             'end': {
-                'dateTime': finalEndDateTime, // Usar la fecha y hora de fin calculadas
+                'dateTime': finalEndDateTime,
                 'timeZone': userTimeZone,
             },
-            'colorId': eventColorId // Añadir la propiedad colorId al evento
+            'colorId': eventColorId
         };
 
         let request;
         if (isUpdate && currentEventId) {
-            console.log(`Actualizando evento con ID: ${currentEventId}`, event);
+            console.log(`submitEvent: Updating event with ID: ${currentEventId}`, event);
             request = gapi.client.calendar.events.update({
                 'calendarId': 'primary',
                 'eventId': currentEventId,
                 'resource': event
             });
         } else {
-            console.log('Creando nuevo evento:', event);
+            console.log('submitEvent: Creating new event:', event);
             request = gapi.client.calendar.events.insert({
                 'calendarId': 'primary',
                 'resource': event
@@ -404,16 +421,17 @@ async function submitEvent(isUpdate = false) {
         }
 
         const response = await request;
-        console.log(`Respuesta de la API - Evento ${isUpdate ? 'actualizado' : 'creado'}:`, response.result);
+        console.log(`submitEvent: API Response - Event ${isUpdate ? 'updated' : 'created'}:`, response.result);
         showResponse(`¡Evento ${isUpdate ? 'actualizado' : 'creado'} exitosamente! Revisa tu Google Calendar.`, 'success');
 
-        resetFormAndButtons(); // Limpiar y resetear el formulario después del éxito
-        // listUpcomingEvents(); // Ya no se llama automáticamente aquí, se activa con el botón
+        resetFormAndButtons(); // Limpiar y resetear el formulario
+        // listUpcomingEvents(); // No se llama automáticamente, se activa con el botón
 
     } catch (error) {
-        console.error(`Error al ${isUpdate ? 'actualizar' : 'crear'} el evento:`, error);
+        console.error(`submitEvent: Error al ${isUpdate ? 'actualizar' : 'crear'} el evento:`, error);
         if (error.result && error.result.error && error.result.error.message) {
             showResponse(`Error al ${isUpdate ? 'actualizar' : 'crear'} el evento: ${error.result.error.message}`, 'error');
+            console.error('submitEvent: API Error details:', error.result.error);
         } else {
             showResponse(`Error desconocido al ${isUpdate ? 'actualizar' : 'crear'} el evento. Revisa la consola para más detalles.`, 'error');
         }
@@ -436,25 +454,19 @@ document.addEventListener('DOMContentLoaded', () => {
     eventFormSection = document.getElementById('event_form_section');
     eventForm = document.getElementById('event_form');
     authSection = document.getElementById('auth_section');
-    headerAuthContainer = document.getElementById('header_auth_container'); // Inicialización del contenedor principal
+    headerAuthContainer = document.getElementById('header_auth_container');
 
-    // Elementos para la modificación (entrada manual de ID)
-    eventIdToModifyInput = document.getElementById('event_id_to_modify');
-    loadEventButton = document.getElementById('load_event_button');
     createEventButton = document.getElementById('create_event_button');
     updateEventButton = document.getElementById('update_event_button');
-    toggleEventListButton = document.getElementById('toggle_event_list_button'); // NUEVO: Inicializar el botón de la lista
+    toggleEventListButton = document.getElementById('toggle_event_list_button');
 
-    // Nuevos elementos para la lista de eventos
     eventListSection = document.getElementById('event_list_section');
     eventListContainer = document.getElementById('event_list_container');
     eventListLoading = document.getElementById('event_list_loading');
 
-
     // Campos del formulario
     eventSummary = document.getElementById('event_summary');
-    // eventLocation = document.getElementById('event_location'); // Eliminado: Ya no se inicializa
-    serviceType = document.getElementById('service_type'); // Inicializar el campo de tipo de servicio
+    serviceType = document.getElementById('service_type');
     eventStartDate = document.getElementById('event_start_date');
     eventStartTime = document.getElementById('event_start_time');
 
@@ -462,29 +474,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authorizeButton) authorizeButton.addEventListener('click', handleAuthClick);
     if (signoutButton) signoutButton.addEventListener('click', handleSignoutClick);
 
-    // Listener para el botón de cargar evento (entrada manual de ID)
-    if (loadEventButton) loadEventButton.addEventListener('click', loadEventForModification);
-
     // Listener para el envío del formulario de eventos
     if (eventForm) {
         eventForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevenir el envío por defecto del formulario
-
-            // Determinar si es una creación o actualización
+            e.preventDefault();
             await submitEvent(currentEventId !== null);
         });
     }
 
-    // Listener para el botón de actualizar (que es un botón "type=button" no submit)
     if (updateEventButton) {
         updateEventButton.addEventListener('click', async () => {
-            await submitEvent(true); // Siempre es una actualización cuando se hace clic aquí
+            await submitEvent(true);
         });
     }
 
-    // NUEVO: Listener para el botón de mostrar/ocultar la lista de eventos
     if (toggleEventListButton) {
         toggleEventListButton.addEventListener('click', () => {
+            console.log('Toggle event list button clicked.');
             if (eventListSection) {
                 if (eventListSection.style.display === 'none' || eventListSection.style.display === '') {
                     eventListSection.style.display = 'block';
