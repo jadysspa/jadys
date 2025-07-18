@@ -465,7 +465,7 @@ async function submitEvent(isUpdate = false) {
             showResponse(`Error al ${isUpdate ? 'actualizar' : 'crear'} el evento: ${error.result.error.message}`, 'error');
             console.error('submitEvent: API Error details:', error.result.error);
         } else {
-            showResponse(`Error desconocido al ${isUpdate ? 'actualizar' : 'crear'} el evento. Revisa la consola para más detalles.`, 'error');
+            showResponse(`Error desconocido al ${isUpdate ? 'actualizar' : 'crear'} el evento. Revisa la consola para más detalles.', 'error');
         }
     }
 }
