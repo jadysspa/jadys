@@ -1,6 +1,6 @@
 // ¡PEGA AQUÍ EL CLIENT_ID OBTENIDO DEL NUEVO PROYECTO DE GOOGLE CLOUD!
 // Debe ser exactamente el ID de cliente para "ClienteWebPrueba" de image_a0e49c.png
-const CLIENT_ID = '796743494350-3urvqs06te5v0438js1c10d0eiukvp85.apps.googleusercontent.com';
+const CLIENT_ID = '683592283913-l722ocdd370okpjh8ta39qeq7lc61bmk.apps.googleusercontent.com';
 
 // Scopes de autorización para Google Calendar.
 // Necesitamos permiso para MANIPULAR (insertar y actualizar) eventos.
@@ -79,7 +79,12 @@ function gisLoaded() {
             console.log('GIS Callback received:', resp);
             if (resp.error) {
                 console.error('Error de autenticación GIS:', resp);
-                showMessage(`Error de autenticación: ${resp.error_description || resp.error}. Revisa la configuración de tu CLIENT_ID y Orígenes.`, 'error');
+                // Si el error es 'popup_closed_by_user' o similar, no mostrar un mensaje de error agresivo
+                if (resp.error === 'popup_closed_by_user' || resp.error === 'access_denied') {
+                    showMessage('Autenticación cancelada. Puedes intentarlo de nuevo.', 'info');
+                } else {
+                    showMessage(`Error de autenticación: ${resp.error_description || resp.error}. Revisa la configuración de tu CLIENT_ID y Orígenes.`, 'error');
+                }
                 showAuthStatus('No autenticado');
             } else {
                 showAuthStatus('Autenticado', true);
@@ -98,22 +103,38 @@ function gisLoaded() {
 
 /**
  * Verifica el estado de autenticación inicial y habilita/deshabilita los botones.
+ * Intenta autenticación silenciosa si no hay token.
  */
-function checkAuthStatus() {
+async function checkAuthStatus() {
     console.log('checkAuthStatus: gapiInited:', gapiInited, 'gisInited:', gisInited);
     if (gapiInited && gisInited) {
         if (gapi.client.getToken()) {
-            console.log('checkAuthStatus: User is authenticated.');
+            console.log('checkAuthStatus: User is already authenticated (token exists).');
             showAuthStatus('Autenticado', true);
             if (eventFormSection) {
                 eventFormSection.style.display = 'block';
             }
             showMessage('Ya autenticado. Puedes crear o modificar eventos.', 'success');
         } else {
-            console.log('checkAuthStatus: User is not authenticated.');
-            showAuthStatus('Listo para autenticar');
-            if (eventFormSection) {
-                eventFormSection.style.display = 'none';
+            console.log('checkAuthStatus: No token found, attempting silent authentication...');
+            try {
+                // Intenta obtener un token sin mostrar la ventana de consentimiento
+                await tokenClient.requestAccessToken({ prompt: 'none' });
+                // Si llega aquí, la autenticación silenciosa fue exitosa
+                console.log('checkAuthStatus: Silent authentication successful.');
+                showAuthStatus('Autenticado', true);
+                showMessage('¡Conexión exitosa con Google Calendar API!', 'success');
+                if (eventFormSection) {
+                    eventFormSection.style.display = 'block';
+                }
+            } catch (error) {
+                // Falló la autenticación silenciosa, el usuario necesita interactuar
+                console.warn('checkAuthStatus: Silent authentication failed, user interaction required:', error);
+                showAuthStatus('Listo para autenticar');
+                showMessage('Necesitas autorizar con Google para usar la aplicación.', 'info');
+                if (eventFormSection) {
+                    eventFormSection.style.display = 'none';
+                }
             }
         }
     }
@@ -173,8 +194,8 @@ function showResponse(msg, type) {
  * Inicia el flujo de autenticación cuando se hace clic en el botón Autorizar.
  */
 function handleAuthClick() {
-    console.log('handleAuthClick: Requesting access token...');
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    console.log('handleAuthClick: Requesting access token explicitly (prompt: consent)...');
+    tokenClient.requestAccessToken({ prompt: 'consent' }); // Esto siempre mostrará la ventana de consentimiento
 }
 
 /**
