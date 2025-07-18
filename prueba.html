@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Calendar API - Eventos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Contenedor principal para el título, párrafo y sección de autenticación -->
+        <div id="header_auth_container">
+            <h1>Google Calendar API</h1>
+            <p>Gestiona tus eventos en Google Calendar.</p>
+
+            <!-- Contenedor para el estado de autenticación y botones -->
+            <div id="auth_section">
+                <div class="status-box">
+                    <p>Estado de autenticación: <span id="status-message">Cargando librerías...</span></p>
+                </div>
+
+                <div class="buttons">
+                    <button id="authorize_button" style="display: none;">Autorizar con Google</button>
+                    <button id="signout_button" style="display: none;">Cerrar Sesión</button>
+                </div>
+            </div>
+        </div> <!-- Fin de header_auth_container -->
+
+        <div id="event_form_section">
+            <h2>Agregar Nuevo Evento</h2>
+
+            <!-- SECCIÓN PARA MODIFICAR EVENTOS (entrada manual de ID) ELIMINADA -->
+            <!-- <h3>Modificar Evento Existente (por ID)</h3>
+            <label for="event_id_to_modify">ID del Evento a Modificar:</label>
+            <input type="text" id="event_id_to_modify" placeholder="Introduce el ID del evento"><br><br>
+            <button id="load_event_button">Cargar Evento para Modificar</button><br><br> -->
+            <!-- FIN DE SECCIÓN ELIMINADA -->
+
+            <form id="event_form">
+                <label for="event_summary">Título del Evento:</label>
+                <input type="text" id="event_summary" required><br><br>
+
+                <!-- Campo para seleccionar el tipo de servicio -->
+                <label for="service_type">Tipo de Servicio:</label>
+                <select id="service_type" required>
+                    <option value="">Selecciona un servicio</option>
+                    <option value="FACIAL">FACIAL</option>
+                    <option value="PESTAÑAS">PESTAÑAS</option>
+                </select><br><br>
+
+                <label for="event_start_date">Fecha de Inicio:</label>
+                <input type="date" id="event_start_date" required><br><br>
+
+                <label for="event_start_time">Hora de Inicio:</label>
+                <input type="time" id="event_start_time" required><br><br>
+
+                <button type="submit" id="create_event_button">Crear Evento</button>
+                <button type="button" id="update_event_button" style="display: none;">Actualizar Evento</button>
+            </form>
+            <br>
+            <!-- Nuevo botón para activar/desactivar la lista de eventos -->
+            <button id="toggle_event_list_button" type="button" style="display: none;">Ver/Ocultar Próximos Eventos</button>
+        </div>
+
+        <!-- SECCIÓN PARA LISTAR EVENTOS (inicialmente oculta) -->
+        <div id="event_list_section" style="display: none;">
+            <h2>Próximos Eventos</h2>
+            <p id="event_list_loading" style="display: none;">Cargando eventos...</p>
+            <div id="event_list_container">
+                <!-- Los eventos se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+        <!-- FIN SECCIÓN -->
+
+        <p id="message" class="info-message"></p>
+        <div id="response_message" class="info-message"></div>
+    </div>
+
+    <!-- Cargar app.js primero para que gisLoaded y gapiLoaded estén definidos -->
+    <script src="app.js"></script>
+    <!-- Scripts de Google API -->
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+</body>
+</html>
